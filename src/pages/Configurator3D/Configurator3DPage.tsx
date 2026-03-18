@@ -217,19 +217,14 @@ export default function Configurator3DPage() {
     let cancelled = false;
 
     const tryWaitForActivateAR = async () => {
-      // czekamy aż custom element będzie zdefiniowany (upgrade klasy)
-      try {
-        const ce = (window as unknown as { customElements?: { whenDefined?: (n: string) => Promise<void> } }).customElements;
-        if (ce?.whenDefined) await ce.whenDefined('model-viewer');
-      } catch {
-        // ignore
-      }
-
       const start = Date.now();
       while (!cancelled && Date.now() - start < 15000) {
         const el = document.querySelector('model-viewer') as unknown as { activateAR?: unknown; canActivateAR?: unknown };
+        // Dla samego UI model-viewer uznajemy za "gotowy", gdy element istnieje w DOM.
+        if (el) setModelViewerReady(true);
+
+        // AR przycisk możemy odpalić dopiero gdy `activateAR` istnieje.
         if (el && typeof el.activateAR === 'function') {
-          setModelViewerReady(true);
           setArStatusText('');
           return;
         }
@@ -237,8 +232,9 @@ export default function Configurator3DPage() {
       }
 
       if (!cancelled) {
-        setModelViewerReady(false);
-        setArStatusText('model-viewer: activateAR nie jest dostępne (spróbuj ponownie lub inny tryb AR).');
+        // Nie blokujemy już UI spinnerem.
+        setModelViewerReady(true);
+        setArStatusText('model-viewer: nie wykryto activateAR (możliwe, że na iOS wymagany jest ios-src/USDZ).');
       }
     };
 
