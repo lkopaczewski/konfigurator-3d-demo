@@ -36,7 +36,7 @@ export default function Configurator3DPage() {
   const [shareUrl, setShareUrl] = useState<string>('');
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [autoOpenAr, setAutoOpenAr] = useState(false);
+  const [showArStartPrompt, setShowArStartPrompt] = useState(false);
 
   const isValidHex = (v: string | null) => Boolean(v && /^#[0-9a-fA-F]{6}$/.test(v));
 
@@ -61,7 +61,7 @@ export default function Configurator3DPage() {
     if (tint === '0') setTintedWindowsEnabled(false);
     if (tint === '1') setTintedWindowsEnabled(true);
 
-    if (ar === '1') setAutoOpenAr(true);
+    if (ar === '1') setShowArStartPrompt(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -231,12 +231,10 @@ export default function Configurator3DPage() {
     tintedWindowsEnabled,
   ]);
 
-  useEffect(() => {
-    if (!autoOpenAr) return;
-    if (materials.length === 0) return;
-    setAutoOpenAr(false);
-    openArWithCurrentConfig();
-  }, [autoOpenAr, materials.length, openArWithCurrentConfig]);
+  const startArFromPrompt = useCallback(() => {
+    setShowArStartPrompt(false);
+    void openArWithCurrentConfig();
+  }, [openArWithCurrentConfig]);
 
   const buildShareUrl = useCallback(() => {
     const url = new URL(window.location.href);
@@ -244,7 +242,7 @@ export default function Configurator3DPage() {
     url.searchParams.set('tires', groupColors.tires);
     url.searchParams.set('glass', groupColors.glass);
     url.searchParams.set('tint', tintedWindowsEnabled ? '1' : '0');
-    url.searchParams.set('ar', '1'); // auto-odpalenie AR na telefonie
+    url.searchParams.set('ar', '1'); // pokaz przycisk startu AR na telefonie
     return url.toString();
   }, [groupColors.body, groupColors.glass, groupColors.tires, tintedWindowsEnabled]);
 
@@ -418,6 +416,57 @@ export default function Configurator3DPage() {
                 {shareUrl}
               </a>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showArStartPrompt ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 59,
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            style={{
+              width: 380,
+              background: 'rgba(14, 22, 41, 0.95)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: 16,
+              padding: 16,
+              color: 'rgba(230, 238, 252, 0.95)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>AR - start</div>
+              <button
+                type="button"
+                className="panelBtn"
+                onClick={() => setShowArStartPrompt(false)}
+                style={{ padding: '8px 10px' }}
+              >
+                Zamknij
+              </button>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.85 }}>
+              Kliknij, żeby przygotować aktualnie skonfigurowany samochód do AR (10x mniejsze).
+            </div>
+            <button
+              type="button"
+              className="panelBtn"
+              onClick={startArFromPrompt}
+              disabled={materials.length === 0 || isExportingAr}
+              style={{ width: '100%', marginTop: 12 }}
+            >
+              {isExportingAr ? 'Przygotowuję AR…' : materials.length === 0 ? 'Wczytywanie…' : 'Uruchom AR'}
+            </button>
           </div>
         </div>
       ) : null}
