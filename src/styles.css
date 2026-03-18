@@ -1,0 +1,298 @@
+:root {
+  color-scheme: light;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+    'Apple Color Emoji', 'Segoe UI Emoji';
+}
+
+body {
+  margin: 0;
+  background: #0b1220;
+  color: #e6eefc;
+}
+
+.configuratorRoot {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 16px;
+  padding: 16px;
+}
+
+.configuratorPanel {
+  background: rgba(14, 22, 41, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.configuratorViewer {
+  background: rgba(14, 22, 41, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+}
+
+.modelCanvas {
+  width: 100%;
+  height: 100%;
+}
+
+.panelTop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.panelTitleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panelKicker {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  color: rgba(230, 238, 252, 0.75);
+}
+
+.panelH1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.panelMeta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.metaPill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(230, 238, 252, 0.9);
+  font-size: 12px;
+}
+
+.panelSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.panelStep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 70px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 14px;
+}
+
+.panelActions {
+  display: flex;
+  gap: 8px;
+}
+
+.panelBtn {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(230, 238, 252, 0.95);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.panelBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.materialList {
+  max-height: 240px;
+  overflow: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.materialItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+}
+
+.materialItem input {
+  width: 16px;
+  height: 16px;
+}
+
+.materialName {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+.muted {
+  color: rgba(230, 238, 252, 0.7);
+  font-size: 13px;
+}
+
+.swatchGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.swatchBtn {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(230, 238, 252, 0.95);
+  border-radius: 14px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatchBtnActive {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.swatchColor {
+  width: 28px;
+  height: 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.swatchHex {
+  font-size: 11px;
+  opacity: 0.9;
+  word-break: break-word;
+}
+
+@media (max-width: 900px) {
+  .configuratorRoot {
+    grid-template-columns: 1fr;
+  }
+  .configuratorViewer {
+    min-height: 60vh;
+  }
+}
+
+.stepPills {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.stepPill {
+  appearance: none;
+  text-align: left;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(230, 238, 252, 0.95);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.stepPillActive {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.stepPill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stepNav {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stepNavInfo {
+  font-size: 13px;
+  color: rgba(230, 238, 252, 0.85);
+}
+
+.stepNavBtn {
+  appearance: none;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(230, 238, 252, 0.95);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.stepNavBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tintToggleRow {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(230, 238, 252, 0.95);
+  font-size: 13px;
+  user-select: none;
+}
+
+.tintToggleRow input {
+  width: 18px;
+  height: 18px;
+}
+
