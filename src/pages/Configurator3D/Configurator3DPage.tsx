@@ -496,6 +496,37 @@ export default function Configurator3DPage() {
               </div>
             ) : null}
 
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 18,
+                left: 18,
+                right: 18,
+                zIndex: 3,
+                display: 'flex',
+                justifyContent: 'center',
+                pointerEvents: modelViewerReady ? 'auto' : 'none',
+              }}
+            >
+              <button
+                type="button"
+                className="panelBtn"
+                onClick={() => {
+                  const el = document.querySelector('model-viewer') as unknown as { activateAR?: () => void } | null;
+                  el?.activateAR?.();
+                }}
+                disabled={!modelViewerReady || !arViewerSrc}
+                style={{
+                  width: 'min(520px, 100%)',
+                  padding: '12px 14px',
+                  fontSize: 14,
+                }}
+                title="Wejdź w tryb AR (kamera w telefonie)"
+              >
+                Wejdź w AR (kamera)
+              </button>
+            </div>
+
             {/* model-viewer jest custom elementem; React nie zawsze zna typy, więc korzystamy z braku typów. */}
             {/* eslint-disable-next-line react/no-unknown-property */}
             <model-viewer
