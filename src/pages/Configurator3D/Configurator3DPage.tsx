@@ -157,23 +157,45 @@ export default function Configurator3DPage() {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AR - Konfigurator</title>
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <style>
       html, body { margin: 0; height: 100%; background: #000; }
       model-viewer { width: 100%; height: 100%; }
     </style>
   </head>
   <body>
+    <div id="status" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-family:sans-serif; z-index:2;">
+      Przygotowuję AR...
+    </div>
     <model-viewer
       src="${blobUrl}"
       ar
-      ar-modes="scene-viewer webxr quick-look"
+      ar-modes="scene-viewer webxr"
       ar-scale="0.1"
       camera-controls
       auto-rotate
       exposure="1"
     >
     </model-viewer>
+    <script>
+      const mv = document.querySelector('model-viewer');
+      if (mv) {
+        mv.addEventListener('load', () => {
+          const el = document.getElementById('status');
+          if (el) el.style.display = 'none';
+        });
+        mv.addEventListener('ar-status', (e) => {
+          // e.detail is model-viewer specific; this is just for visibility.
+          // eslint-disable-next-line no-console
+          console.log('ar-status', e.detail);
+        });
+        // Bez Quick Look na iOS i bez ios-src unikamy sytuacji "kręci w nieskończoność".
+        setTimeout(() => {
+          const el = document.getElementById('status');
+          if (el) el.textContent = 'Jeśli AR nie startuje automatycznie, spróbuj ponownie (model-viewer może wymagać USDZ na iOS).';
+        }, 20000);
+      }
+    </script>
     <script>
       // Pozwól użytkownikowi odpalić AR, dopiero po czasie zwolnij zasób.
       setTimeout(() => { try { URL.revokeObjectURL('${blobUrl}'); } catch (e) {} }, 600000);
