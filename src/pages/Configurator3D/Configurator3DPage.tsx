@@ -201,7 +201,8 @@ export default function Configurator3DPage() {
     script.async = true;
     script.dataset.modelViewer = '1';
     script.onload = () => {
-      // gotowe - model-viewer readiness ustawimy dopiero po załadowaniu modelu (event `load`).
+      // Skrypt jest załadowany - readiness ustawimy dopiero po upewnieniu się,
+      // że custom element ma metodę activateAR.
     };
     script.onerror = () => {
       setModelViewerReady(false);
@@ -213,35 +214,37 @@ export default function Configurator3DPage() {
   useEffect(() => {
     if (!arViewerOpen) return;
 
-    const el = document.querySelector('model-viewer') as unknown as { addEventListener?: Function } | null;
-    if (!el || typeof (el as unknown as { addEventListener: Function }).addEventListener !== 'function') {
-      return;
-    }
+    let cancelled = false;
 
-    const onLoad = () => {
-      setModelViewerReady(true);
-      setArStatusText('');
+    const tryWaitForActivateAR = async () => {
+      // czekamy aż custom element będzie zdefiniowany (upgrade klasy)
+      try {
+        const ce = (window as unknown as { customElements?: { whenDefined?: (n: string) => Promise<void> } }).customElements;
+        if (ce?.whenDefined) await ce.whenDefined('model-viewer');
+      } catch {
+        // ignore
+      }
+
+      const start = Date.now();
+      while (!cancelled && Date.now() - start < 15000) {
+        const el = document.querySelector('model-viewer') as unknown as { activateAR?: unknown; canActivateAR?: unknown };
+        if (el && typeof el.activateAR === 'function') {
+          setModelViewerReady(true);
+          setArStatusText('');
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 200));
+      }
+
+      if (!cancelled) {
+        setModelViewerReady(false);
+        setArStatusText('model-viewer: activateAR nie jest dostępne (spróbuj ponownie lub inny tryb AR).');
+      }
     };
 
-    const onArStatus = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      const msg = typeof detail === 'string' ? detail : JSON.stringify(detail ?? {});
-      setArStatusText(msg);
-    };
-
-    const onArError = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      const msg = typeof detail === 'string' ? detail : JSON.stringify(detail ?? {});
-      setArStatusText(`AR error: ${msg}`);
-    };
-
-    (el as unknown as { addEventListener: (name: string, cb: (e: Event) => void) => void }).addEventListener('load', onLoad as (e: Event) => void);
-    (el as unknown as { addEventListener: (name: string, cb: (e: Event) => void) => void }).addEventListener('ar-status', onArStatus as (e: Event) => void);
-    (el as unknown as { addEventListener: (name: string, cb: (e: Event) => void) => void }).addEventListener('ar-error', onArError as (e: Event) => void);
-
+    void tryWaitForActivateAR();
     return () => {
-      // brak klasycznych removeEventListener dla custom elementów w tym podejściu
-      // (a tak i tak modala jest odpinana przez React przy zamknięciu).
+      cancelled = true;
     };
   }, [arViewerOpen, arViewerSrc]);
 
@@ -580,11 +583,25 @@ export default function Configurator3DPage() {
                     setArStatusText('model-viewer: brak metody activateAR');
                     return;
                   }
-                  try {
-                    fn.call(el);
-                  } catch (e) {
-                    setArStatusText(`Błąd podczas activateAR: ${e instanceof Error ? e.message : String(e)}`);
-                  }
+                  void (async () => {
+                    try {
+                      const anyEl = el as unknown as {
+                        canActivateAR?: boolean;
+                        dismissPoster?: () => void;
+                        activateAR?: () => Promise<void> | void;
+                      };
+                      if (typeof anyEl.dismissPoster === 'function') anyEl.dismissPoster();
+
+                      if (anyEl.canActivateAR === false) {
+                        setArStatusText('AR nie jest dostępne na tym urządzeniu/przeglądarce.');
+                        return;
+                      }
+
+                      await anyEl.activateAR?.();
+                    } catch (e) {
+                      setArStatusText(`Błąd podczas activateAR: ${e instanceof Error ? e.message : String(e)}`);
+                    }
+                  })();
                 }}
                 disabled={!modelViewerReady || !arViewerSrc}
                 style={{
