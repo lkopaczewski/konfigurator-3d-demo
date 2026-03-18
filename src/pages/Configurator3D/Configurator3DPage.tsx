@@ -37,6 +37,10 @@ export default function Configurator3DPage() {
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [showArStartPrompt, setShowArStartPrompt] = useState(false);
+  const [arViewerOpen, setArViewerOpen] = useState(false);
+  const [arViewerSrc, setArViewerSrc] = useState<string>('');
+  const [modelViewerReady, setModelViewerReady] = useState(false);
+  const arViewerSrcRef = useRef<string | null>(null);
 
   const isValidHex = (v: string | null) => Boolean(v && /^#[0-9a-fA-F]{6}$/.test(v));
 
@@ -149,72 +153,18 @@ export default function Configurator3DPage() {
 
       const blob = new Blob([arrayBuffer], { type: 'model/gltf-binary' });
       const blobUrl = URL.createObjectURL(blob);
-
-      // Skala AR: 10x mniejsze (ar-scale=0.1).
-      const html = `<!doctype html>
-<html lang="pl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AR - Konfigurator</title>
-    <script src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-    <style>
-      html, body { margin: 0; height: 100%; background: #000; }
-      model-viewer { width: 100%; height: 100%; }
-    </style>
-  </head>
-  <body>
-    <div id="status" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-family:sans-serif; z-index:2;">
-      Przygotowuję AR...
-    </div>
-    <model-viewer
-      src="${blobUrl}"
-      ar
-      ar-modes="scene-viewer webxr"
-      ar-scale="0.1"
-      camera-controls
-      auto-rotate
-      exposure="1"
-    >
-    </model-viewer>
-    <script>
-      const mv = document.querySelector('model-viewer');
-      if (mv) {
-        mv.addEventListener('load', () => {
-          const el = document.getElementById('status');
-          if (el) el.style.display = 'none';
-        });
-        mv.addEventListener('ar-status', (e) => {
-          // e.detail is model-viewer specific; this is just for visibility.
-          // eslint-disable-next-line no-console
-          console.log('ar-status', e.detail);
-        });
-        // Bez Quick Look na iOS i bez ios-src unikamy sytuacji "kręci w nieskończoność".
-        setTimeout(() => {
-          const el = document.getElementById('status');
-          if (el) el.textContent = 'Jeśli AR nie startuje automatycznie, spróbuj ponownie (model-viewer może wymagać USDZ na iOS).';
-        }, 20000);
+      // Zamiast otwierać nową kartę (iOS potrafi robić z tego problem),
+      // renderujemy model-viewer w modalu na tej samej stronie.
+      if (arViewerSrcRef.current) {
+        try {
+          URL.revokeObjectURL(arViewerSrcRef.current);
+        } catch (e) {
+          // ignore
+        }
       }
-    </script>
-    <script>
-      // Pozwól użytkownikowi odpalić AR, dopiero po czasie zwolnij zasób.
-      setTimeout(() => { try { URL.revokeObjectURL('${blobUrl}'); } catch (e) {} }, 600000);
-    </script>
-  </body>
-</html>`;
-
-      const w = window.open('', '_blank', 'noopener,noreferrer');
-      if (!w) {
-        // Na telefonie (szczególnie przy autoodpaleniu z linku/QR) przeglądarka może blokować pop-upy.
-        // W takim wypadku wypisujemy AR w tej samej karcie, żeby nie błądzić w nieskończoności.
-        document.open();
-        document.write(html);
-        document.close();
-        return;
-      }
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
+      arViewerSrcRef.current = blobUrl;
+      setArViewerSrc(blobUrl);
+      setArViewerOpen(true);
     } catch (err) {
       console.error(err);
       alert('Nie udało się przygotować widoku AR. Sprawdź log w konsoli.');
@@ -235,6 +185,39 @@ export default function Configurator3DPage() {
     setShowArStartPrompt(false);
     void openArWithCurrentConfig();
   }, [openArWithCurrentConfig]);
+
+  // Lazy-load model-viewer do modala.
+  useEffect(() => {
+    if (!arViewerOpen) return;
+    if (modelViewerReady) return;
+
+    const existing = document.querySelector('script[data-model-viewer="1"]') as HTMLScriptElement | null;
+    if (existing) return;
+
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
+    script.async = true;
+    script.dataset.modelViewer = '1';
+    script.onload = () => setModelViewerReady(true);
+    script.onerror = () => setModelViewerReady(false);
+    document.head.appendChild(script);
+  }, [arViewerOpen, modelViewerReady]);
+
+  useEffect(() => {
+    if (!arViewerOpen) return;
+    return () => {
+      if (arViewerSrcRef.current) {
+        try {
+          URL.revokeObjectURL(arViewerSrcRef.current);
+        } catch (e) {
+          // ignore
+        }
+      }
+      arViewerSrcRef.current = null;
+      setArViewerSrc('');
+      setModelViewerReady(false);
+    };
+  }, [arViewerOpen]);
 
   const buildShareUrl = useCallback(() => {
     const url = new URL(window.location.href);
@@ -284,7 +267,7 @@ export default function Configurator3DPage() {
               type="button"
               className="panelBtn"
               onClick={openArWithCurrentConfig}
-              disabled={materials.length === 0 || isExportingAr}
+              disabled={materials.length === 0 || isExportingAr || showArStartPrompt || arViewerOpen}
               title="AR z aktualnymi kolorami (10x mniejsze)"
             >
               {isExportingAr ? 'Przygotowuję AR…' : 'AR (10x mniejsze)'}
@@ -294,7 +277,7 @@ export default function Configurator3DPage() {
               type="button"
               className="panelBtn"
               onClick={openShareQr}
-              disabled={materials.length === 0 || isExportingAr}
+              disabled={materials.length === 0 || isExportingAr || showArStartPrompt || arViewerOpen}
               title="Link+QR do telefonu (ustawi kolory i odpali AR)"
             >
               QR / Link AR
@@ -467,6 +450,63 @@ export default function Configurator3DPage() {
             >
               {isExportingAr ? 'Przygotowuję AR…' : materials.length === 0 ? 'Wczytywanie…' : 'Uruchom AR'}
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {arViewerOpen ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 70,
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              background: 'rgba(0,0,0,0.95)',
+              position: 'relative',
+            }}
+          >
+            <div style={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', justifyContent: 'space-between', gap: 10, zIndex: 2 }}>
+              <div style={{ color: 'rgba(230,238,252,0.95)', fontSize: 14, fontWeight: 700 }}>
+                AR (10x mniejsze)
+              </div>
+              <button
+                type="button"
+                className="panelBtn"
+                onClick={() => setArViewerOpen(false)}
+                style={{ padding: '8px 10px' }}
+              >
+                Zamknij
+              </button>
+            </div>
+
+            {!modelViewerReady ? (
+              <div style={{ color: '#fff', padding: 20, marginTop: 60, fontFamily: 'sans-serif' }}>
+                Wczytywanie model-viewer...
+              </div>
+            ) : null}
+
+            {/* model-viewer jest custom elementem; React nie zawsze zna typy, więc korzystamy z braku typów. */}
+            {/* eslint-disable-next-line react/no-unknown-property */}
+            <model-viewer
+              src={arViewerSrc}
+              ar
+              ar-modes="quick-look"
+              ar-scale="0.1"
+              camera-controls
+              exposure="1"
+              style={{ width: '100%', height: '100%' }}
+            />
           </div>
         </div>
       ) : null}
