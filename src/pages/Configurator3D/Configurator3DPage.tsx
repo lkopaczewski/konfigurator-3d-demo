@@ -40,6 +40,7 @@ export default function Configurator3DPage() {
   const [arViewerOpen, setArViewerOpen] = useState(false);
   const [arViewerSrc, setArViewerSrc] = useState<string>('');
   const [modelViewerReady, setModelViewerReady] = useState(false);
+  const [arStatusText, setArStatusText] = useState<string>('');
   const arViewerSrcRef = useRef<string | null>(null);
 
   const isValidHex = (v: string | null) => Boolean(v && /^#[0-9a-fA-F]{6}$/.test(v));
@@ -164,6 +165,8 @@ export default function Configurator3DPage() {
       }
       arViewerSrcRef.current = blobUrl;
       setArViewerSrc(blobUrl);
+      setModelViewerReady(false);
+      setArStatusText('');
       setArViewerOpen(true);
     } catch (err) {
       console.error(err);
@@ -189,7 +192,6 @@ export default function Configurator3DPage() {
   // Lazy-load model-viewer do modala.
   useEffect(() => {
     if (!arViewerOpen) return;
-    if (modelViewerReady) return;
 
     const existing = document.querySelector('script[data-model-viewer="1"]') as HTMLScriptElement | null;
     if (existing) return;
@@ -198,10 +200,50 @@ export default function Configurator3DPage() {
     script.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
     script.async = true;
     script.dataset.modelViewer = '1';
-    script.onload = () => setModelViewerReady(true);
-    script.onerror = () => setModelViewerReady(false);
+    script.onload = () => {
+      // gotowe - model-viewer readiness ustawimy dopiero po załadowaniu modelu (event `load`).
+    };
+    script.onerror = () => {
+      setModelViewerReady(false);
+      setArStatusText('Nie udało się załadować model-viewer z CDN.');
+    };
     document.head.appendChild(script);
-  }, [arViewerOpen, modelViewerReady]);
+  }, [arViewerOpen]);
+
+  useEffect(() => {
+    if (!arViewerOpen) return;
+
+    const el = document.querySelector('model-viewer') as unknown as { addEventListener?: Function } | null;
+    if (!el || typeof (el as unknown as { addEventListener: Function }).addEventListener !== 'function') {
+      return;
+    }
+
+    const onLoad = () => {
+      setModelViewerReady(true);
+      setArStatusText('');
+    };
+
+    const onArStatus = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const msg = typeof detail === 'string' ? detail : JSON.stringify(detail ?? {});
+      setArStatusText(msg);
+    };
+
+    const onArError = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const msg = typeof detail === 'string' ? detail : JSON.stringify(detail ?? {});
+      setArStatusText(`AR error: ${msg}`);
+    };
+
+    (el as unknown as { addEventListener: (name: string, cb: (e: Event) => void) => void }).addEventListener('load', onLoad as (e: Event) => void);
+    (el as unknown as { addEventListener: (name: string, cb: (e: Event) => void) => void }).addEventListener('ar-status', onArStatus as (e: Event) => void);
+    (el as unknown as { addEventListener: (name: string, cb: (e: Event) => void) => void }).addEventListener('ar-error', onArError as (e: Event) => void);
+
+    return () => {
+      // brak klasycznych removeEventListener dla custom elementów w tym podejściu
+      // (a tak i tak modala jest odpinana przez React przy zamknięciu).
+    };
+  }, [arViewerOpen, arViewerSrc]);
 
   useEffect(() => {
     if (!arViewerOpen) return;
@@ -215,6 +257,7 @@ export default function Configurator3DPage() {
       }
       arViewerSrcRef.current = null;
       setArViewerSrc('');
+      setArStatusText('');
       setModelViewerReady(false);
     };
   }, [arViewerOpen]);
@@ -490,6 +533,25 @@ export default function Configurator3DPage() {
               </button>
             </div>
 
+            {arStatusText ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 46,
+                  left: 12,
+                  right: 12,
+                  zIndex: 2,
+                  color: 'rgba(230,238,252,0.9)',
+                  fontSize: 12,
+                  textAlign: 'center',
+                  padding: '0 8px',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {arStatusText}
+              </div>
+            ) : null}
+
             {!modelViewerReady ? (
               <div style={{ color: '#fff', padding: 20, marginTop: 60, fontFamily: 'sans-serif' }}>
                 Wczytywanie model-viewer...
@@ -513,7 +575,16 @@ export default function Configurator3DPage() {
                 className="panelBtn"
                 onClick={() => {
                   const el = document.querySelector('model-viewer') as unknown as { activateAR?: () => void } | null;
-                  el?.activateAR?.();
+                  const fn = el?.activateAR;
+                  if (typeof fn !== 'function') {
+                    setArStatusText('model-viewer: brak metody activateAR');
+                    return;
+                  }
+                  try {
+                    fn.call(el);
+                  } catch (e) {
+                    setArStatusText(`Błąd podczas activateAR: ${e instanceof Error ? e.message : String(e)}`);
+                  }
                 }}
                 disabled={!modelViewerReady || !arViewerSrc}
                 style={{
