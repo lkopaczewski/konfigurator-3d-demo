@@ -557,60 +557,6 @@ export default function Configurator3DPage() {
               </div>
             ) : null}
 
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 18,
-                left: 18,
-                right: 18,
-                zIndex: 3,
-                display: 'flex',
-                justifyContent: 'center',
-                pointerEvents: modelViewerReady ? 'auto' : 'none',
-              }}
-            >
-              <button
-                type="button"
-                className="panelBtn"
-                onClick={() => {
-                  const el = document.querySelector('model-viewer') as unknown as { activateAR?: () => void } | null;
-                  const fn = el?.activateAR;
-                  if (typeof fn !== 'function') {
-                    setArStatusText('model-viewer: brak metody activateAR');
-                    return;
-                  }
-                  void (async () => {
-                    try {
-                      const anyEl = el as unknown as {
-                        canActivateAR?: boolean;
-                        dismissPoster?: () => void;
-                        activateAR?: () => Promise<void> | void;
-                      };
-                      if (typeof anyEl.dismissPoster === 'function') anyEl.dismissPoster();
-
-                      if (anyEl.canActivateAR === false) {
-                        setArStatusText('AR nie jest dostępne na tym urządzeniu/przeglądarce.');
-                        return;
-                      }
-
-                      await anyEl.activateAR?.();
-                    } catch (e) {
-                      setArStatusText(`Błąd podczas activateAR: ${e instanceof Error ? e.message : String(e)}`);
-                    }
-                  })();
-                }}
-                disabled={!modelViewerReady || !arViewerSrc}
-                style={{
-                  width: 'min(520px, 100%)',
-                  padding: '12px 14px',
-                  fontSize: 14,
-                }}
-                title="Wejdź w tryb AR (kamera w telefonie)"
-              >
-                Wejdź w AR (kamera)
-              </button>
-            </div>
-
             {/* model-viewer jest custom elementem; React nie zawsze zna typy, więc korzystamy z braku typów. */}
             {/* eslint-disable-next-line react/no-unknown-property */}
             <model-viewer
@@ -621,7 +567,28 @@ export default function Configurator3DPage() {
               camera-controls
               exposure="1"
               style={{ width: '100%', height: '100%' }}
-            />
+            >
+              <button
+                slot="ar-button"
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  bottom: 18,
+                  transform: 'translateX(-50%)',
+                  zIndex: 3,
+                  padding: '12px 16px',
+                  borderRadius: 14,
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  background: 'rgba(255,255,255,0.08)',
+                  color: 'rgba(230,238,252,0.95)',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  width: 'min(520px, 92vw)',
+                }}
+              >
+                Wejdź w AR (kamera)
+              </button>
+            </model-viewer>
           </div>
         </div>
       ) : null}
