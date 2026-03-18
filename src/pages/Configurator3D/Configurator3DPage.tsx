@@ -204,7 +204,14 @@ export default function Configurator3DPage() {
 </html>`;
 
       const w = window.open('', '_blank', 'noopener,noreferrer');
-      if (!w) throw new Error('Zablokowane pop-upy. Zezwól na otwieranie nowej karty.');
+      if (!w) {
+        // Na telefonie (szczególnie przy autoodpaleniu z linku/QR) przeglądarka może blokować pop-upy.
+        // W takim wypadku wypisujemy AR w tej samej karcie, żeby nie błądzić w nieskończoności.
+        document.open();
+        document.write(html);
+        document.close();
+        return;
+      }
       w.document.open();
       w.document.write(html);
       w.document.close();
