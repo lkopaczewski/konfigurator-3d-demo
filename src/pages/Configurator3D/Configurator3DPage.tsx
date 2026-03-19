@@ -139,6 +139,7 @@ export default function Configurator3DPage() {
     if (existing) return;
 
     const script = document.createElement('script');
+    script.type = 'module';
     script.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
     script.async = true;
     script.dataset.modelViewer = '1';
