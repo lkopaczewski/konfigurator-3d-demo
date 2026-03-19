@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import * as THREE from 'three';
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import ColorSwatches from '../../components/Configurator3D/ColorSwatches';
 import ModelViewer from '../../components/Configurator3D/ModelViewer';
 import type { MaterialDescriptor, MaterialGroupKey } from '../../components/Configurator3D/utils';
-import { applyColorMapToMaterials, applyOpacityToMaterials, collectColorMaterials, extractMaterialGroups } from '../../components/Configurator3D/utils';
+import { extractMaterialGroups } from '../../components/Configurator3D/utils';
 
 const MODEL_URL = '/models/mercedes-gls-580.glb';
+const AR_GLB_URL = '/models/mercedes-gls-580.glb';
+const AR_USDZ_URL = '/models/mercedes-gls-580.usdz';
 
 const PRESET_COLORS: string[] = [
   '#FFFFFF',
@@ -31,7 +30,6 @@ export default function Configurator3DPage() {
     glass: PRESET_COLORS[2],
   });
   const [tintedWindowsEnabled, setTintedWindowsEnabled] = useState(true);
-  const [isExportingAr, setIsExportingAr] = useState(false);
   const [shareQrOpen, setShareQrOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>('');
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -120,69 +118,13 @@ export default function Configurator3DPage() {
     setGroupColors((prev) => ({ ...prev, [activeStep.key]: hex }));
   };
 
-  const openArWithCurrentConfig = useCallback(async () => {
-    if (isExportingAr) return;
-    if (materials.length === 0) return;
-
-    setIsExportingAr(true);
-    try {
-      const loader = new GLTFLoader();
-      const gltf = await loader.loadAsync(MODEL_URL);
-
-      const { materialsById } = collectColorMaterials(gltf.scene);
-      applyColorMapToMaterials(materialsById, colorByMaterialId);
-
-      const tintIds = new Set(windowTintMaterialIds);
-      applyOpacityToMaterials(materialsById, tintIds, tintedWindowsEnabled ? 1 : 0);
-
-      const exporter = new GLTFExporter();
-      const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-        exporter.parse(
-          gltf.scene,
-          (result) => {
-            if (result instanceof ArrayBuffer) resolve(result);
-            else if (result && typeof (result as { buffer?: ArrayBuffer }).buffer !== 'undefined') {
-              resolve((result as { buffer: ArrayBuffer }).buffer);
-            } else {
-              reject(new Error('Nie udało się wyeksportować GLB.'));
-            }
-          },
-          (err) => reject(err),
-          { binary: true },
-        );
-      });
-
-      const blob = new Blob([arrayBuffer], { type: 'model/gltf-binary' });
-      const blobUrl = URL.createObjectURL(blob);
-      // Zamiast otwierać nową kartę (iOS potrafi robić z tego problem),
-      // renderujemy model-viewer w modalu na tej samej stronie.
-      if (arViewerSrcRef.current) {
-        try {
-          URL.revokeObjectURL(arViewerSrcRef.current);
-        } catch (e) {
-          // ignore
-        }
-      }
-      arViewerSrcRef.current = blobUrl;
-      setArViewerSrc(blobUrl);
-      setModelViewerReady(false);
-      setArStatusText('');
-      setArViewerOpen(true);
-    } catch (err) {
-      console.error(err);
-      alert('Nie udało się przygotować widoku AR. Sprawdź log w konsoli.');
-    } finally {
-      setIsExportingAr(false);
-    }
-  }, [
-    isExportingAr,
-    materials.length,
-    // MODEL_URL jest stałą, ale trzymamy ją w deps dla czytelności.
-    MODEL_URL,
-    colorByMaterialId,
-    windowTintMaterialIds,
-    tintedWindowsEnabled,
-  ]);
+  const openArWithCurrentConfig = useCallback(() => {
+    arViewerSrcRef.current = null;
+    setArViewerSrc(AR_GLB_URL);
+    setModelViewerReady(false);
+    setArStatusText('');
+    setArViewerOpen(true);
+  }, []);
 
   const startArFromPrompt = useCallback(() => {
     setShowArStartPrompt(false);
@@ -200,10 +142,7 @@ export default function Configurator3DPage() {
     script.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
     script.async = true;
     script.dataset.modelViewer = '1';
-    script.onload = () => {
-      // Skrypt jest załadowany - readiness ustawimy dopiero po upewnieniu się,
-      // że custom element ma metodę activateAR.
-    };
+    script.onload = () => setModelViewerReady(true);
     script.onerror = () => {
       setModelViewerReady(false);
       setArStatusText('Nie udało się załadować model-viewer z CDN.');
@@ -211,45 +150,14 @@ export default function Configurator3DPage() {
     document.head.appendChild(script);
   }, [arViewerOpen]);
 
-  useEffect(() => {
-    if (!arViewerOpen) return;
-
-    let cancelled = false;
-
-    const tryWaitForActivateAR = async () => {
-      const start = Date.now();
-      while (!cancelled && Date.now() - start < 15000) {
-        const el = document.querySelector('model-viewer') as unknown as { activateAR?: unknown; canActivateAR?: unknown };
-        // Dla samego UI model-viewer uznajemy za "gotowy", gdy element istnieje w DOM.
-        if (el) setModelViewerReady(true);
-
-        // AR przycisk możemy odpalić dopiero gdy `activateAR` istnieje.
-        if (el && typeof el.activateAR === 'function') {
-          setArStatusText('');
-          return;
-        }
-        await new Promise((r) => setTimeout(r, 200));
-      }
-
-      if (!cancelled) {
-        // Nie blokujemy już UI spinnerem.
-        setModelViewerReady(true);
-        setArStatusText('model-viewer: nie wykryto activateAR (możliwe, że na iOS wymagany jest ios-src/USDZ).');
-      }
-    };
-
-    void tryWaitForActivateAR();
-    return () => {
-      cancelled = true;
-    };
-  }, [arViewerOpen, arViewerSrc]);
 
   useEffect(() => {
     if (!arViewerOpen) return;
     return () => {
-      if (arViewerSrcRef.current) {
+      const src = arViewerSrcRef.current;
+      if (src && src.startsWith('blob:')) {
         try {
-          URL.revokeObjectURL(arViewerSrcRef.current);
+          URL.revokeObjectURL(src);
         } catch (e) {
           // ignore
         }
@@ -309,17 +217,17 @@ export default function Configurator3DPage() {
               type="button"
               className="panelBtn"
               onClick={openArWithCurrentConfig}
-              disabled={materials.length === 0 || isExportingAr || showArStartPrompt || arViewerOpen}
-              title="AR z aktualnymi kolorami (10x mniejsze)"
+              disabled={showArStartPrompt || arViewerOpen}
+              title="Zobacz w AR (Android Scene Viewer, iPhone Quick Look)"
             >
-              {isExportingAr ? 'Przygotowuję AR…' : 'AR (10x mniejsze)'}
+              AR (10x mniejsze)
             </button>
 
             <button
               type="button"
               className="panelBtn"
               onClick={openShareQr}
-              disabled={materials.length === 0 || isExportingAr || showArStartPrompt || arViewerOpen}
+              disabled={materials.length === 0 || showArStartPrompt || arViewerOpen}
               title="Link+QR do telefonu (ustawi kolory i odpali AR)"
             >
               QR / Link AR
@@ -487,10 +395,10 @@ export default function Configurator3DPage() {
               type="button"
               className="panelBtn"
               onClick={startArFromPrompt}
-              disabled={materials.length === 0 || isExportingAr}
+              disabled={materials.length === 0}
               style={{ width: '100%', marginTop: 12 }}
             >
-              {isExportingAr ? 'Przygotowuję AR…' : materials.length === 0 ? 'Wczytywanie…' : 'Uruchom AR'}
+              {materials.length === 0 ? 'Wczytywanie…' : 'Uruchom AR'}
             </button>
           </div>
         </div>
@@ -561,10 +469,12 @@ export default function Configurator3DPage() {
             {/* eslint-disable-next-line react/no-unknown-property */}
             <model-viewer
               src={arViewerSrc}
+              ios-src={AR_USDZ_URL}
               ar
-              ar-modes="quick-look"
+              ar-modes="scene-viewer quick-look webxr"
               ar-scale="0.1"
               camera-controls
+              auto-rotate
               exposure="1"
               style={{ width: '100%', height: '100%' }}
             >
