@@ -7,7 +7,7 @@ import { extractMaterialGroups } from '../../components/Configurator3D/utils';
 
 const MODEL_URL = '/models/mercedes-gls-580.glb';
 const AR_GLB_URL = '/models/mercedes-gls-580.glb';
-const AR_USDZ_URL = '/models/mercedes-gls-580.usdz';
+const AR_USDZ_URL = '/models/teddy.usdz';
 
 const PRESET_COLORS: string[] = [
   '#FFFFFF',
