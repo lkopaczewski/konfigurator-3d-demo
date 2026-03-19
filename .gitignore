@@ -1,0 +1,43 @@
+# Zależności
+node_modules/
+
+# Build Vite
+dist/
+
+# Cache / narzędzia
+.vite/
+*.tsbuildinfo
+
+# Logi
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Zmienne środowiskowe (nie commituj sekretów)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Testy / coverage
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / edytor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Opcjonalnie: bardzo duże modele 3D poza public/ (odkomentuj jeśli trzymasz je tylko lokalnie)
+# *.glb
+# *.usdz
+# uploads_*/
